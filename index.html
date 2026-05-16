@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Madame Tagada — Mini-jeu</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  @font-face {
+    font-family: 'BBB ReadMe';
+    src: url('fonts/BBBReadMe-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'BBB ReadMe';
+    src: url('fonts/BBBReadMe-SemiBold.otf') format('opentype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'BBB ReadMe';
+    src: url('fonts/BBBReadMe-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'BBB ReadMe';
+    src: url('fonts/BBBReadMe-Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    --bg: #ffffff;
+    --ink: #2a2a2a;
+    --line: #2a2a2a;
+    --soft: #fdf2f4;
+    --muted: #999;
+    --accent: #ff8db3;
+    --accent-deep: #c46285;
+    --shadow: rgba(80, 60, 80, 0.08);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'BBB ReadMe', 'SF Pro Rounded', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    padding: 18px clamp(18px, 2vw, 32px);
+    gap: 14px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 12px;
+    flex: 0 0 auto;
+  }
+  h1 {
+    font-size: clamp(20px, 2.4vw, 28px);
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  h1 .heart {
+    display: inline-block;
+    color: var(--accent);
+    transition: color 0.4s ease;
+    transform: translateY(2px);
+  }
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  main {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: clamp(16px, 2.4vw, 28px);
+    min-height: 0;
+  }
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    min-width: 0;
+  }
+  canvas {
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 24px;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    box-shadow: 0 8px 24px var(--shadow);
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 0;
+  }
+  .panel {
+    border: 1.5px solid var(--line);
+    background: #fff;
+    border-radius: 18px;
+    padding: 12px 14px;
+  }
+  .panel h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 9px 0;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .levels {
+    display: flex;
+    gap: 6px;
+  }
+  .levels button {
+    flex: 1;
+    aspect-ratio: 1;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    position: relative;
+    color: var(--ink);
+    transition: background 0.15s, color 0.15s, transform 0.06s;
+  }
+  .levels button:hover { background: var(--soft); }
+  .levels button.active {
+    background: var(--ink);
+    color: #fff;
+  }
+  .levels button .dot {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    border: 1.2px solid var(--line);
+  }
+  .levels button.active .dot { border-color: #fff; }
+
+  .direction {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    background: var(--soft);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .direction .arrow {
+    font-size: 24px;
+    font-weight: 700;
+    width: 30px;
+    text-align: center;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .actions button {
+    padding: 14px 0 12px 0;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    transition: transform 0.08s, background 0.12s, color 0.12s;
+    line-height: 1.1;
+    font-family: inherit;
+    color: var(--ink);
+  }
+  .actions button:hover { background: var(--soft); transform: translateY(-1px); }
+  .actions button:active { transform: scale(0.94); }
+  .actions button .key {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+
+  .program-panel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 100px;
+  }
+  .program-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    background: var(--soft);
+    min-height: 0;
+  }
+  .program-list .empty {
+    color: var(--muted);
+    font-style: italic;
+    font-family: inherit;
+  }
+  .program-list .line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 1px 4px;
+    font-weight: 600;
+    border-radius: 4px;
+  }
+  .program-list .line.current {
+    background: var(--accent);
+    color: #fff;
+  }
+  .program-list .num {
+    color: var(--muted);
+    min-width: 22px;
+    font-weight: 400;
+  }
+  .program-list .line.current .num { color: #fff; opacity: 0.7; }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .controls button {
+    padding: 12px;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    transition: background 0.12s, color 0.12s, transform 0.06s;
+  }
+  .btn-restart {
+    background: #fff;
+    color: var(--ink);
+  }
+  .btn-restart:hover { background: var(--soft); }
+  .btn-replay {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--line);
+    transition: background 0.4s, color 0.4s;
+  }
+  .btn-replay:hover { filter: brightness(1.06); }
+
+  .status {
+    font-size: 13px;
+    min-height: 1.4em;
+    padding: 6px 4px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .status.bug { color: #d4615a; }
+  .status.win { color: var(--accent-deep); transition: color 0.4s; }
+
+  footer {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 880px) {
+    main { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Madame Tagada cherche sa couleur <span class="heart">♡</span></h1>
+    <div class="subtitle">Https:// · ateliers Bully · mai 2026</div>
+  </header>
+
+  <main>
+    <div class="stage">
+      <canvas id="game" width="640" height="640"></canvas>
+    </div>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>Plateau</h2>
+        <div class="levels" id="levels"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Direction de Tagada</h2>
+        <div class="direction">
+          <span class="arrow" id="direction-arrow">→</span>
+          <span id="direction-text">Tagada regarde vers la droite</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Donne une instruction</h2>
+        <div class="actions">
+          <button data-instr="forward">
+            <span class="key">↑</span>
+            Avance
+          </button>
+          <button data-instr="left">
+            <span class="key">←</span>
+            Gauche
+          </button>
+          <button data-instr="right">
+            <span class="key">→</span>
+            Droite
+          </button>
+        </div>
+      </div>
+
+      <div class="panel program-panel">
+        <h2>Mon programme</h2>
+        <div class="program-list" id="program-list"></div>
+        <div class="controls">
+          <button class="btn-restart" id="btn-restart">↺ Recommencer</button>
+          <button class="btn-replay" id="btn-replay">▶ Rejouer</button>
+        </div>
+      </div>
+
+      <div class="status" id="status">Clique sur Avance, Gauche ou Droite.</div>
+    </aside>
+  </main>
+
+  <footer>
+    Clavier : flèches ↑ ← → · R recommencer · Espace rejouer · F plein écran · 1–5 changer de plateau
+  </footer>
+
+  <script src="game.js"></script>
+</body>
+</html>
