@@ -47,18 +47,24 @@
   html, body {
     margin: 0;
     padding: 0;
-    height: 100%;
+    min-height: 100%;
     background: var(--bg);
     color: var(--ink);
     font-family: 'BBB ReadMe', 'SF Pro Rounded', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    overflow: hidden;
   }
+  html { height: 100%; }
   body {
     display: flex;
     flex-direction: column;
-    padding: 18px clamp(18px, 2vw, 32px);
+    padding: 18px clamp(14px, 2vw, 32px);
     gap: 14px;
+    min-height: 100%;
+  }
+  /* Sur grand écran, on garde le layout figé sur une seule page. */
+  @media (min-width: 881px) and (min-height: 700px) {
+    html, body { height: 100%; overflow: hidden; }
+    body { height: 100%; }
   }
   header {
     display: flex;
@@ -300,8 +306,51 @@
     flex: 0 0 auto;
   }
 
+  /* ============ Tablette & mobile : layout en 1 colonne ============ */
   @media (max-width: 880px) {
-    main { grid-template-columns: 1fr; }
+    main {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    .stage {
+      width: 100%;
+    }
+    canvas {
+      width: 100%;
+      max-width: min(560px, 96vw);
+      height: auto;
+      aspect-ratio: 1 / 1;
+    }
+    .sidebar {
+      max-width: 560px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    /* Ordre adapté au mobile : Avance/Gauche/Droite reste prioritaire,
+       puis le programme, puis les plateaux, puis la direction. */
+    .panel-actions   { order: 1; }
+    .panel-program   { order: 2; }
+    .panel-levels    { order: 3; }
+    .panel-direction { order: 4; }
+    .status          { order: 5; }
+    .sidebar { display: flex; flex-direction: column; }
+
+    .actions button { padding: 16px 0 14px; font-size: 14px; }
+    .actions button .key { font-size: 26px; }
+    .controls button { padding: 14px; font-size: 13px; }
+    .program-list { max-height: 180px; }
+  }
+
+  /* ============ Petit mobile (portrait étroit) ============ */
+  @media (max-width: 480px) {
+    body { padding: 12px; gap: 10px; }
+    header { padding-bottom: 6px; }
+    h1 { font-size: 18px; }
+    .subtitle { font-size: 11px; }
+    .panel { padding: 10px 12px; }
+    .levels button { font-size: 16px; }
+    .actions { gap: 6px; }
+    footer { font-size: 10px; line-height: 1.4; }
   }
 </style>
 </head>
@@ -317,12 +366,12 @@
     </div>
 
     <aside class="sidebar">
-      <div class="panel">
+      <div class="panel panel-levels">
         <h2>Plateau</h2>
         <div class="levels" id="levels"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel panel-direction">
         <h2>Direction de Tagada</h2>
         <div class="direction">
           <span class="arrow" id="direction-arrow">→</span>
@@ -330,7 +379,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel panel-actions">
         <h2>Donne une instruction</h2>
         <div class="actions">
           <button data-instr="forward">
@@ -348,7 +397,7 @@
         </div>
       </div>
 
-      <div class="panel program-panel">
+      <div class="panel program-panel panel-program">
         <h2>Mon programme</h2>
         <div class="program-list" id="program-list"></div>
         <div class="controls">
