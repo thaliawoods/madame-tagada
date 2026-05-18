@@ -13,7 +13,7 @@ const LEVELS = [
     color: '#82c8e5', colorDeep: '#4a90a8', colorName: 'bleue' },
   { name: 'Plateau 3 — Tagada citron', start: { col: 2, row: 2, dir: 1 }, pot: { col: 4, row: 0 }, obstacles: [{ col: 3, row: 2 }, { col: 4, row: 1 }],
     color: '#ffd866', colorDeep: '#c4a040', colorName: 'jaune' },
-  { name: 'Plateau 4 — Tagada pomme',  start: { col: 4, row: 0, dir: 2 }, pot: { col: 0, row: 4 }, obstacles: [{ col: 2, row: 2 }],
+  { name: 'Plateau 4 — Tagada pomme',  start: { col: 4, row: 0, dir: 2 }, pot: { col: 0, row: 4 }, obstacles: [{ col: 3, row: 1 }, { col: 2, row: 2 }, { col: 1, row: 3 }],
     color: '#9eda9e', colorDeep: '#5a9c5c', colorName: 'verte' },
   { name: 'Plateau 5 — Tagada raisin', start: { col: 0, row: 2, dir: 1 }, pot: { col: 4, row: 2 }, obstacles: [{ col: 2, row: 1 }, { col: 2, row: 3 }, { col: 1, row: 2 }],
     color: '#c39ee6', colorDeep: '#8a6db5', colorName: 'violette' },
@@ -65,7 +65,7 @@ function loadLevel(i) {
   state.program = [];
   state.currentStep = -1;
   state.busy = false;
-  state.message = `Trouve le pot de peinture ${lv.colorName} pour Tagada.`;
+  state.message = `Construis ton programme pour amener Tagada vers la peinture ${lv.colorName}.`;
   state.messageKind = '';
   state.shakeAmount = 0;
   applyAccent();
@@ -125,7 +125,7 @@ function drawBonbon() {
   ctx.save();
   ctx.translate(c.x, c.y);
   ctx.scale(pulse, pulse);
-  ctx.translate(-CELL * 0.12, 0);
+  ctx.translate(-CELL * 0.04, -CELL * 0.04);
 
   const potW = CELL * 0.62;
   const potH = CELL * 0.58;
@@ -233,46 +233,83 @@ function drawBonbon() {
   ctx.translate(halfW + 4, botY - potH * 0.25);
   ctx.rotate(Math.PI * 0.05);
 
-  const brushLen = CELL * 0.32;
-  const ferruleLen = CELL * 0.1;
-  const ferruleW = CELL * 0.13;
-  const bristleLen = CELL * 0.1;
+  const bristleLen = CELL * 0.20;
+  const bristleW   = CELL * 0.20;
+  const ferruleLen = CELL * 0.09;
+  const handleLen  = CELL * 0.22;
 
+  // Soies (touffe) — bord avant en éventail
   ctx.fillStyle = lv.color;
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1.8;
+  ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.moveTo(0, -ferruleW * 0.45);
-  ctx.lineTo(0, ferruleW * 0.45);
-  ctx.lineTo(-bristleLen * 0.7, ferruleW * 0.5);
-  ctx.bezierCurveTo(-bristleLen, ferruleW * 0.45, -bristleLen * 1.05, ferruleW * 0.2, -bristleLen, 0);
-  ctx.bezierCurveTo(-bristleLen * 1.05, -ferruleW * 0.2, -bristleLen, -ferruleW * 0.45, -bristleLen * 0.7, -ferruleW * 0.5);
+  ctx.moveTo(0, -bristleW * 0.5);
+  ctx.lineTo(0,  bristleW * 0.5);
+  ctx.lineTo(-bristleLen * 0.78,  bristleW * 0.58);
+  ctx.bezierCurveTo(
+    -bristleLen * 1.02,  bristleW * 0.48,
+    -bristleLen * 1.05,  bristleW * 0.15,
+    -bristleLen,         0
+  );
+  ctx.bezierCurveTo(
+    -bristleLen * 1.05, -bristleW * 0.15,
+    -bristleLen * 1.02, -bristleW * 0.48,
+    -bristleLen * 0.78, -bristleW * 0.58
+  );
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
+  // Stries horizontales — dans le sens des soies (de la virole vers la pointe)
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 0.9;
+  ctx.lineCap = 'round';
+  const strieCount = 5;
+  for (let i = 0; i < strieCount; i++) {
+    const t = i / (strieCount - 1);            // 0 → 1 de haut en bas
+    const y = -bristleW * 0.42 + t * (bristleW * 0.84);
+    // les soies du bord sont un peu plus courtes (forme en éventail)
+    const edgeFactor = 1 - Math.abs(t - 0.5) * 0.6;
+    const xStart = -1;                          // juste avant la virole
+    const xEnd = -bristleLen * (0.95 * edgeFactor + 0.05);
+    ctx.beginPath();
+    ctx.moveTo(xStart, y);
+    ctx.lineTo(xEnd, y);
+    ctx.stroke();
+  }
+
+  // Ferrule (bague métallique) + rivet
   ctx.fillStyle = '#cfcfd6';
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1.8;
   ctx.beginPath();
-  ctx.rect(0, -ferruleW * 0.45, ferruleLen, ferruleW * 0.9);
+  ctx.rect(0, -bristleW * 0.5, ferruleLen, bristleW);
   ctx.fill();
   ctx.stroke();
+  ctx.lineWidth = 1.0;
+  ctx.beginPath();
+  ctx.moveTo(ferruleLen * 0.5, -bristleW * 0.45);
+  ctx.lineTo(ferruleLen * 0.5,  bristleW * 0.45);
+  ctx.stroke();
 
-  const handleStart = ferruleLen;
-  const handleH = ferruleW * 0.78;
+  // Manche trapézoïdal court (bois clair)
+  const handleStartX = ferruleLen;
+  const handleH0 = bristleW * 0.82;
+  const handleH1 = bristleW * 0.74;
   ctx.fillStyle = '#e8b878';
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1.8;
+  ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.moveTo(handleStart, -handleH / 2);
-  ctx.lineTo(handleStart + brushLen - 5, -handleH / 2);
+  ctx.moveTo(handleStartX, -handleH0 / 2);
+  ctx.lineTo(handleStartX + handleLen * 0.92, -handleH1 / 2);
   ctx.bezierCurveTo(
-    handleStart + brushLen + handleH * 0.45, -handleH / 2,
-    handleStart + brushLen + handleH * 0.45, handleH / 2,
-    handleStart + brushLen - 5, handleH / 2
+    handleStartX + handleLen + handleH1 * 0.3, -handleH1 / 2,
+    handleStartX + handleLen + handleH1 * 0.3,  handleH1 / 2,
+    handleStartX + handleLen * 0.92,  handleH1 / 2
   );
-  ctx.lineTo(handleStart, handleH / 2);
+  ctx.lineTo(handleStartX,  handleH0 / 2);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -475,23 +512,25 @@ function animateTo(toCol, toRow, toDir, dur, onDone) {
   requestAnimationFrame(tick);
 }
 
+const INSTR_TO_DIR = { up: 0, right: 1, down: 2, left: 3 };
+
 function applyInstruction(instr, animDur = 240) {
   return new Promise((resolve) => {
     const t = state.tagada;
-    if (instr === 'left')  { t.dir = (t.dir + 3) % 4; animateTo(t.col, t.row, t.dir, animDur, resolve); return; }
-    if (instr === 'right') { t.dir = (t.dir + 1) % 4; animateTo(t.col, t.row, t.dir, animDur, resolve); return; }
-    if (instr === 'forward') {
-      const [dx, dy] = dirToDelta(t.dir);
-      const nc = t.col + dx, nr = t.row + dy;
-      if (isObstacle(nc, nr)) { triggerBug(); resolve('bug'); return; }
-      t.col = nc; t.row = nr;
-      animateTo(t.col, t.row, t.dir, animDur, () => {
-        if (isPot(t.col, t.row)) { triggerWin(); resolve('win'); }
-        else resolve('ok');
-      });
+    const newDir = INSTR_TO_DIR[instr];
+    if (newDir === undefined) { resolve('noop'); return; }
+    const [dx, dy] = dirToDelta(newDir);
+    const nc = t.col + dx, nr = t.row + dy;
+    t.dir = newDir;
+    if (isObstacle(nc, nr)) {
+      animateTo(t.col, t.row, t.dir, animDur, () => { triggerBug(); resolve('bug'); });
       return;
     }
-    resolve('noop');
+    t.col = nc; t.row = nr;
+    animateTo(t.col, t.row, t.dir, animDur, () => {
+      if (isPot(t.col, t.row)) { triggerWin(); resolve('win'); }
+      else resolve('ok');
+    });
   });
 }
 
@@ -597,27 +636,34 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
-async function doInstruction(instr) {
+function doInstruction(instr) {
   if (state.busy || state.tagada.painted) return;
-  state.busy = true;
+  if (INSTR_TO_DIR[instr] === undefined) return;
   state.program.push(instr);
-  state.currentStep = state.program.length - 1;
   renderProgram();
-  beep(instr === 'forward' ? 380 : 280, 0.05, 'sine');
-  await applyInstruction(instr);
-  state.currentStep = -1;
-  state.busy = false;
+  beep(340, 0.05, 'sine');
+  state.message = `${state.program.length} instruction${state.program.length > 1 ? 's' : ''} dans ton programme. Clique sur Exécuter quand tu es prêt.`;
+  state.messageKind = '';
+  renderStatus();
+}
+
+function removeInstruction(i) {
+  if (state.busy || state.tagada.painted) return;
+  state.program.splice(i, 1);
   renderProgram();
-  if (!state.tagada.painted && state.messageKind !== 'bug') {
-    state.message = `${state.program.length} instruction${state.program.length > 1 ? 's' : ''} dans le programme.`;
-    state.messageKind = '';
-    renderStatus();
+  beep(160, 0.05, 'sine');
+  if (state.program.length === 0) {
+    state.message = 'Construis ton programme avec les flèches.';
+  } else {
+    state.message = `${state.program.length} instruction${state.program.length > 1 ? 's' : ''} dans ton programme.`;
   }
+  state.messageKind = '';
+  renderStatus();
 }
 
 function restart() { if (!state.busy) loadLevel(state.levelIndex); }
 
-async function replay() {
+async function runProgram() {
   if (state.busy || state.program.length === 0) return;
   state.busy = true;
   const lv = LEVELS[state.levelIndex];
@@ -631,10 +677,11 @@ async function replay() {
   state.shakeAmount = 0;
   draw();
   renderStatus();
+  renderProgram();
   for (let i = 0; i < state.program.length; i++) {
     state.currentStep = i;
     renderProgram();
-    beep(state.program[i] === 'forward' ? 380 : 280, 0.05, 'sine');
+    beep(340, 0.05, 'sine');
     const result = await applyInstruction(state.program[i], 360);
     if (result === 'bug' || result === 'win') break;
     await sleep(140);
@@ -649,12 +696,8 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 const levelsEl = document.getElementById('levels');
 const programListEl = document.getElementById('program-list');
 const statusEl = document.getElementById('status');
-const directionArrowEl = document.getElementById('direction-arrow');
-const directionTextEl = document.getElementById('direction-text');
 
-const INSTR_LABELS = { forward: '↑ avance', left: '← gauche', right: 'droite →' };
-const DIR_TEXT = ['vers le haut', 'vers la droite', 'vers le bas', 'vers la gauche'];
-const DIR_ARROW = ['↑', '→', '↓', '←'];
+const INSTR_LABELS = { up: '↑ haut', right: 'droite →', down: 'bas ↓', left: '← gauche' };
 
 function renderLevels() {
   levelsEl.innerHTML = '';
@@ -673,14 +716,21 @@ function renderProgram() {
   if (state.program.length === 0) {
     const e = document.createElement('div');
     e.className = 'empty';
-    e.textContent = '(programme vide)';
+    e.textContent = '(programme vide — clique sur une flèche)';
     programListEl.appendChild(e);
     return;
   }
   state.program.forEach((instr, i) => {
     const line = document.createElement('div');
-    line.className = 'line' + (i === state.currentStep ? ' current' : '');
-    line.innerHTML = `<span class="num">${String(i + 1).padStart(2, '0')}</span><span>${INSTR_LABELS[instr]}</span>`;
+    const isCurrent = i === state.currentStep;
+    line.className = 'line' + (isCurrent ? ' current' : '');
+    const canEdit = !state.busy && !state.tagada.painted;
+    line.innerHTML = `<span class="num">${String(i + 1).padStart(2, '0')}</span><span class="instr">${INSTR_LABELS[instr]}</span>${canEdit ? '<span class="del" title="Supprimer">×</span>' : ''}`;
+    if (canEdit) {
+      line.style.cursor = 'pointer';
+      line.title = 'Cliquer pour supprimer';
+      line.onclick = () => removeInstruction(i);
+    }
     programListEl.appendChild(line);
   });
   programListEl.scrollTop = programListEl.scrollHeight;
@@ -691,21 +741,10 @@ function renderStatus() {
   statusEl.className = 'status ' + (state.messageKind || '');
 }
 
-function renderDirection() {
-  if (!state.tagada) return;
-  const d = Math.round(state.tagada.displayDir) % 4;
-  const dd = ((d % 4) + 4) % 4;
-  directionArrowEl.textContent = DIR_ARROW[dd];
-  directionTextEl.textContent = state.tagada.painted
-    ? `Tagada est ${LEVELS[state.levelIndex].colorName} !`
-    : `Tagada regarde ${DIR_TEXT[dd]}`;
-}
-
 function renderUI() {
   renderLevels();
   renderProgram();
   renderStatus();
-  renderDirection();
 }
 
 let lastLoopTime = performance.now();
@@ -714,7 +753,6 @@ function loop() {
   const dt = Math.min(0.05, (now - lastLoopTime) / 1000);
   lastLoopTime = now;
   if (state.particles.length > 0) updateParticles(dt);
-  renderDirection();
   draw();
   requestAnimationFrame(loop);
 }
@@ -744,21 +782,19 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (k === 'r') { restart(); return; }
-  if (k === ' ') { e.preventDefault(); replay(); return; }
+  if (k === ' ') { e.preventDefault(); runProgram(); return; }
   if (k >= '1' && k <= '5') { loadLevel(parseInt(k, 10) - 1); return; }
-  if (e.key === 'ArrowUp' || k === 'z' || k === 'w') { e.preventDefault(); doInstruction('forward'); return; }
-  if (e.key === 'ArrowLeft' || k === 'q') { e.preventDefault(); doInstruction('left'); return; }
-  if (e.key === 'ArrowRight') { e.preventDefault(); doInstruction('right'); return; }
-  if (k === 'a') { doInstruction('forward'); return; }
-  if (k === 'g') { doInstruction('left'); return; }
-  if (k === 'd') { doInstruction('right'); return; }
+  if (e.key === 'ArrowUp'    || k === 'z' || k === 'w') { e.preventDefault(); doInstruction('up'); return; }
+  if (e.key === 'ArrowDown'  || k === 's' || k === 'x') { e.preventDefault(); doInstruction('down'); return; }
+  if (e.key === 'ArrowLeft'  || k === 'q' || k === 'a') { e.preventDefault(); doInstruction('left'); return; }
+  if (e.key === 'ArrowRight' || k === 'd')              { e.preventDefault(); doInstruction('right'); return; }
 });
 
 for (const b of document.querySelectorAll('[data-instr]')) {
   b.onclick = () => doInstruction(b.dataset.instr);
 }
 document.getElementById('btn-restart').onclick = restart;
-document.getElementById('btn-replay').onclick = replay;
+document.getElementById('btn-replay').onclick = runProgram;
 
 loadLevel(0);
 draw();
