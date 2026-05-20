@@ -1,23 +1,9 @@
-const GRID = 5;
-const CELL = 124;
+const CELL = 103;
 const PAD = 10;
 const CANVAS_SIZE = CELL * GRID + PAD * 2;
 
 const INK = '#2a2a2a';
 const CHEEK = '#ffb8c8';
-
-const LEVELS = [
-  { name: 'Plateau 1 — Tagada rose',   start: { col: 0, row: 0, dir: 1 }, pot: { col: 4, row: 4 }, obstacles: [],
-    color: '#ff8db3', colorDeep: '#c46285', colorName: 'rose' },
-  { name: 'Plateau 2 — Tagada bleue',  start: { col: 0, row: 4, dir: 0 }, pot: { col: 2, row: 2 }, obstacles: [{ col: 1, row: 3 }],
-    color: '#82c8e5', colorDeep: '#4a90a8', colorName: 'bleue' },
-  { name: 'Plateau 3 — Tagada citron', start: { col: 2, row: 2, dir: 1 }, pot: { col: 4, row: 0 }, obstacles: [{ col: 3, row: 2 }, { col: 4, row: 1 }],
-    color: '#ffd866', colorDeep: '#c4a040', colorName: 'jaune' },
-  { name: 'Plateau 4 — Tagada pomme',  start: { col: 4, row: 0, dir: 2 }, pot: { col: 0, row: 4 }, obstacles: [{ col: 3, row: 1 }, { col: 2, row: 2 }, { col: 1, row: 3 }],
-    color: '#9eda9e', colorDeep: '#5a9c5c', colorName: 'verte' },
-  { name: 'Plateau 5 — Tagada raisin', start: { col: 0, row: 2, dir: 1 }, pot: { col: 4, row: 2 }, obstacles: [{ col: 2, row: 1 }, { col: 2, row: 3 }, { col: 1, row: 2 }],
-    color: '#c39ee6', colorDeep: '#8a6db5', colorName: 'violette' },
-];
 
 const state = {
   levelIndex: 0,
@@ -34,6 +20,8 @@ const state = {
   animDur: 240,
   startTime: performance.now(),
   particles: [],
+  starsCollected: new Set(),
+  optimalSteps: 0,
 };
 
 const canvas = document.getElementById('game');
@@ -54,6 +42,37 @@ function applyAccent() {
   document.documentElement.style.setProperty('--accent-deep', lv.colorDeep);
 }
 
+function computeOptimalSteps(level) {
+  const obstacles = new Set(level.obstacles.map(o => `${o.col},${o.row}`));
+  const stars = level.stars || [];
+  const targetMask = (1 << stars.length) - 1;
+  const starIndexAt = (col, row) => stars.findIndex(s => s.col === col && s.row === row);
+
+  const startKey = `${level.start.col},${level.start.row},0`;
+  const queue = [{ col: level.start.col, row: level.start.row, mask: 0, steps: 0 }];
+  const visited = new Set([startKey]);
+
+  while (queue.length) {
+    const node = queue.shift();
+    if (node.col === level.pot.col && node.row === level.pot.row && node.mask === targetMask) {
+      return node.steps;
+    }
+    for (const [dc, dr] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+      const nc = node.col + dc, nr = node.row + dr;
+      if (nc < 0 || nr < 0 || nc >= GRID || nr >= GRID) continue;
+      if (obstacles.has(`${nc},${nr}`)) continue;
+      let newMask = node.mask;
+      const si = starIndexAt(nc, nr);
+      if (si >= 0) newMask |= (1 << si);
+      const key = `${nc},${nr},${newMask}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      queue.push({ col: nc, row: nr, mask: newMask, steps: node.steps + 1 });
+    }
+  }
+  return -1;
+}
+
 function loadLevel(i) {
   state.levelIndex = i;
   const lv = LEVELS[i];
@@ -65,7 +84,9 @@ function loadLevel(i) {
   state.program = [];
   state.currentStep = -1;
   state.busy = false;
-  state.message = `Construis ton programme pour amener Tagada vers la peinture ${lv.colorName}.`;
+  state.starsCollected = new Set();
+  state.optimalSteps = computeOptimalSteps(lv);
+  state.message = `Amène Tagada au pot ${lv.colorName} en passant par les 3 étoiles. Objectif : moins de ${state.optimalSteps + 4} coups.`;
   state.messageKind = '';
   state.shakeAmount = 0;
   applyAccent();
@@ -94,6 +115,38 @@ function drawGrid() {
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(PAD, PAD, GRID * CELL, GRID * CELL);
+}
+
+function drawStars() {
+  const lv = LEVELS[state.levelIndex];
+  if (!lv.stars) return;
+  const t = (performance.now() - state.startTime) / 1000;
+  lv.stars.forEach((s, idx) => {
+    const collected = state.starsCollected.has(idx);
+    const c = cellCenter(s.col, s.row);
+    const pulse = collected ? 0 : Math.sin(t * 3 + idx * 1.2) * 0.06 + 1;
+    const baseR = CELL * 0.22;
+    const r = baseR * (collected ? 0.55 : pulse);
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate(-Math.PI / 2);
+    if (collected) ctx.globalAlpha = 0.28;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const radius = i % 2 === 0 ? r : r * 0.42;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = collected ? '#cccccc' : '#ffd54a';
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.restore();
+  });
 }
 
 function drawObstacles() {
@@ -462,6 +515,7 @@ function drawBugOverlay() {
 
 function draw() {
   drawGrid();
+  drawStars();
   drawObstacles();
   drawBonbon();
   drawTagada();
@@ -517,6 +571,7 @@ const INSTR_TO_DIR = { up: 0, right: 1, down: 2, left: 3 };
 function applyInstruction(instr, animDur = 240) {
   return new Promise((resolve) => {
     const t = state.tagada;
+    const lv = LEVELS[state.levelIndex];
     const newDir = INSTR_TO_DIR[instr];
     if (newDir === undefined) { resolve('noop'); return; }
     const [dx, dy] = dirToDelta(newDir);
@@ -528,8 +583,17 @@ function applyInstruction(instr, animDur = 240) {
     }
     t.col = nc; t.row = nr;
     animateTo(t.col, t.row, t.dir, animDur, () => {
-      if (isPot(t.col, t.row)) { triggerWin(); resolve('win'); }
-      else resolve('ok');
+      const si = lv.stars.findIndex(s => s.col === t.col && s.row === t.row);
+      if (si >= 0 && !state.starsCollected.has(si)) {
+        state.starsCollected.add(si);
+        beep(660, 0.08, 'sine');
+        renderStatus();
+      }
+      if (isPot(t.col, t.row) && state.starsCollected.size === lv.stars.length) {
+        triggerWin(); resolve('win');
+      } else {
+        resolve('ok');
+      }
     });
   });
 }
@@ -553,7 +617,13 @@ function triggerBug() {
 function triggerWin() {
   const lv = LEVELS[state.levelIndex];
   state.tagada.painted = true;
-  state.message = `Bravo ! Tagada est ${lv.colorName} !`;
+  const coups = state.program.length;
+  const target = state.optimalSteps + 4;
+  let perfBadge;
+  if (coups <= state.optimalSteps) perfBadge = '🏆 score parfait';
+  else if (coups < target) perfBadge = '⭐ objectif battu';
+  else perfBadge = '✓ objectif atteint';
+  state.message = `Bravo ! Tagada est ${lv.colorName} en ${coups} coups — ${perfBadge}.`;
   state.messageKind = 'win';
   beep(440, 0.12);
   setTimeout(() => beep(660, 0.16), 130);
@@ -672,6 +742,7 @@ async function runProgram() {
     painted: false,
     displayCol: lv.start.col, displayRow: lv.start.row, displayDir: lv.start.dir,
   };
+  state.starsCollected = new Set();
   state.message = 'Le programme tourne…';
   state.messageKind = '';
   state.shakeAmount = 0;
@@ -737,7 +808,12 @@ function renderProgram() {
 }
 
 function renderStatus() {
-  statusEl.textContent = state.message;
+  const lv = LEVELS[state.levelIndex];
+  const totalStars = lv.stars.length;
+  const target = state.optimalSteps + 4;
+  const coups = state.program.length;
+  const counters = `Coups : ${coups} / objectif ${target} · Étoiles : ${state.starsCollected.size}/${totalStars}`;
+  statusEl.innerHTML = `<div class="status-msg">${state.message}</div><div class="status-counters">${counters}</div>`;
   statusEl.className = 'status ' + (state.messageKind || '');
 }
 

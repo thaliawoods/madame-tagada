@@ -326,8 +326,18 @@
     font-weight: 600;
     text-align: center;
   }
+  .status .status-msg { line-height: 1.35; }
+  .status .status-counters {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
   .status.bug { color: #d4615a; }
+  .status.bug .status-counters { color: #d4615a; opacity: 0.85; }
   .status.win { color: var(--accent-deep); transition: color 0.4s; }
+  .status.win .status-counters { color: var(--accent-deep); opacity: 0.85; }
 
   /* ============ Petit laptop / tablette paysage : layout dense ============ */
   @media (min-width: 881px) and (max-width: 1100px) {
@@ -501,6 +511,7 @@
     Clavier : flèches ↑ ↓ ← → · R recommencer · Espace exécuter · F plein écran · 1–5 changer de plateau · clic sur une ligne pour la supprimer
   </footer>
 
+  <script src="levels.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
