@@ -21,6 +21,7 @@ const state = {
   startTime: performance.now(),
   particles: [],
   starsCollected: new Set(),
+  visited: new Set(),
   optimalSteps: 0,
 };
 
@@ -48,29 +49,35 @@ function computeOptimalSteps(level) {
   const targetMask = (1 << stars.length) - 1;
   const starIndexAt = (col, row) => stars.findIndex(s => s.col === col && s.row === row);
 
-  const startKey = `${level.start.col},${level.start.row},0`;
-  const queue = [{ col: level.start.col, row: level.start.row, mask: 0, steps: 0 }];
-  const visited = new Set([startKey]);
+  let best = Infinity;
+  const visited = new Set([`${level.start.col},${level.start.row}`]);
+  const startMask = (() => {
+    const si = starIndexAt(level.start.col, level.start.row);
+    return si >= 0 ? (1 << si) : 0;
+  })();
 
-  while (queue.length) {
-    const node = queue.shift();
-    if (node.col === level.pot.col && node.row === level.pot.row && node.mask === targetMask) {
-      return node.steps;
+  function dfs(col, row, mask, steps) {
+    if (steps >= best) return;
+    if (col === level.pot.col && row === level.pot.row && mask === targetMask) {
+      best = steps;
+      return;
     }
     for (const [dc, dr] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
-      const nc = node.col + dc, nr = node.row + dr;
+      const nc = col + dc, nr = row + dr;
       if (nc < 0 || nr < 0 || nc >= GRID || nr >= GRID) continue;
       if (obstacles.has(`${nc},${nr}`)) continue;
-      let newMask = node.mask;
+      const key = `${nc},${nr}`;
+      if (visited.has(key)) continue;
+      let newMask = mask;
       const si = starIndexAt(nc, nr);
       if (si >= 0) newMask |= (1 << si);
-      const key = `${nc},${nr},${newMask}`;
-      if (visited.has(key)) continue;
       visited.add(key);
-      queue.push({ col: nc, row: nr, mask: newMask, steps: node.steps + 1 });
+      dfs(nc, nr, newMask, steps + 1);
+      visited.delete(key);
     }
   }
-  return -1;
+  dfs(level.start.col, level.start.row, startMask, 0);
+  return best === Infinity ? -1 : best;
 }
 
 function loadLevel(i) {
@@ -85,8 +92,9 @@ function loadLevel(i) {
   state.currentStep = -1;
   state.busy = false;
   state.starsCollected = new Set();
+  state.visited = new Set([`${lv.start.col},${lv.start.row}`]);
   state.optimalSteps = computeOptimalSteps(lv);
-  state.message = `Amène Tagada au pot ${lv.colorName} en passant par les 3 étoiles. Objectif : moins de ${state.optimalSteps + 4} coups.`;
+  state.message = `Amène Tagada au pot ${lv.colorMasc} en passant par les 3 étoiles, sans repasser deux fois sur la même case. Objectif : moins de ${state.optimalSteps + 4} coups.`;
   state.messageKind = '';
   state.shakeAmount = 0;
   applyAccent();
@@ -115,6 +123,26 @@ function drawGrid() {
   ctx.strokeStyle = INK;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(PAD, PAD, GRID * CELL, GRID * CELL);
+}
+
+function drawVisitedTrail() {
+  if (!state.visited || state.visited.size <= 1) return;
+  const lv = LEVELS[state.levelIndex];
+  const t = state.tagada;
+  const currentKey = t ? `${t.col},${t.row}` : '';
+  ctx.save();
+  for (const key of state.visited) {
+    if (key === currentKey) continue;
+    const [c, r] = key.split(',').map(Number);
+    const x = PAD + c * CELL;
+    const y = PAD + r * CELL;
+    ctx.fillStyle = lv.color + '33';
+    ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+    ctx.strokeStyle = lv.colorDeep + '55';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 2.5, y + 2.5, CELL - 5, CELL - 5);
+  }
+  ctx.restore();
 }
 
 function drawStars() {
@@ -515,6 +543,7 @@ function drawBugOverlay() {
 
 function draw() {
   drawGrid();
+  drawVisitedTrail();
   drawStars();
   drawObstacles();
   drawBonbon();
@@ -578,10 +607,15 @@ function applyInstruction(instr, animDur = 240) {
     const nc = t.col + dx, nr = t.row + dy;
     t.dir = newDir;
     if (isObstacle(nc, nr)) {
-      animateTo(t.col, t.row, t.dir, animDur, () => { triggerBug(); resolve('bug'); });
+      animateTo(t.col, t.row, t.dir, animDur, () => { triggerBug('obstacle'); resolve('bug'); });
+      return;
+    }
+    if (state.visited.has(`${nc},${nr}`)) {
+      animateTo(t.col, t.row, t.dir, animDur, () => { triggerBug('revisite'); resolve('bug'); });
       return;
     }
     t.col = nc; t.row = nr;
+    state.visited.add(`${nc},${nr}`);
     animateTo(t.col, t.row, t.dir, animDur, () => {
       const si = lv.stars.findIndex(s => s.col === t.col && s.row === t.row);
       if (si >= 0 && !state.starsCollected.has(si)) {
@@ -598,8 +632,10 @@ function applyInstruction(instr, animDur = 240) {
   });
 }
 
-function triggerBug() {
-  state.message = 'Oups… Tagada a tapé un nuage. C\'est un bug !';
+function triggerBug(kind = 'obstacle') {
+  state.message = kind === 'revisite'
+    ? 'Oups… Tagada repasse sur ses traces. C\'est un bug !'
+    : 'Oups… Tagada a tapé un nuage. C\'est un bug !';
   state.messageKind = 'bug';
   state.shakeAmount = 1;
   beep(220, 0.16, 'square');
@@ -743,6 +779,7 @@ async function runProgram() {
     displayCol: lv.start.col, displayRow: lv.start.row, displayDir: lv.start.dir,
   };
   state.starsCollected = new Set();
+  state.visited = new Set([`${lv.start.col},${lv.start.row}`]);
   state.message = 'Le programme tourne…';
   state.messageKind = '';
   state.shakeAmount = 0;

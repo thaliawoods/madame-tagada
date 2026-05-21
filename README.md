@@ -13,9 +13,10 @@ Aucune installation. Tout est local — fonctionne sans Internet.
 Grille **6×6**. Tagada doit :
 1. Collecter les **3 étoiles** (ordre libre)
 2. Arriver sur le **pot de peinture**
-3. En **le moins de coups possible** (l'objectif est affiché à côté du compteur)
+3. **Sans repasser deux fois sur la même case** (les cases déjà parcourues s'affichent en rose pâle pendant l'exécution).
+4. En **le moins de coups possible** (l'objectif est affiché à côté du compteur)
 
-Si Tagada se cogne dans un nuage ou sort de la grille → **bug**, le programme s'arrête.
+Si Tagada se cogne dans un nuage, sort de la grille, **ou repasse sur une case déjà visitée** → **bug**, le programme s'arrête.
 
 ## Contrôles
 
@@ -38,15 +39,15 @@ Clic sur une ligne du programme → la supprime (utile pour corriger).
 
 5 plateaux **iso-difficiles** (chemin optimal ~10 pas, 4-5 obstacles, 3 étoiles). Ils correspondent exactement aux **5 plateaux papier A3** distribués aux 5 équipes (cf. `../imprimables/`). Si on modifie ici, modifier les impressions en cohérence.
 
-| # | Tagada | Départ | Pot | Objectif coups |
-|---|---|---|---|---|
-| 1 | rose | haut-gauche | bas-droite | moins de 26 |
-| 2 | bleue | haut-droite | bas-gauche | moins de 24 |
-| 3 | jaune | bas-gauche | haut-droite | moins de 26 |
-| 4 | verte | bas-droite | haut-gauche | moins de 24 |
-| 5 | violette | milieu-gauche | milieu-droite | moins de 20 |
+| # | Tagada | Départ | Pot | Optimal | Objectif coups |
+|---|---|---|---|---|---|
+| 1 | rose | haut-gauche | bas-droite | 22 | moins de 26 |
+| 2 | bleue | haut-droite | bas-gauche | 20 | moins de 24 |
+| 3 | jaune | bas-gauche | haut-droite | 20 | moins de 24 |
+| 4 | verte | bas-droite | haut-gauche | 20 | moins de 24 |
+| 5 | violette | milieu-gauche | milieu-droite | 18 | moins de 22 |
 
-L'objectif coups est recalculé automatiquement (BFS + bitmask des étoiles, voir `computeOptimalSteps` dans `game.js`) à partir du chemin optimal + 4 coups de marge.
+L'objectif coups est recalculé automatiquement (DFS avec contrainte « pas de revisite », voir `computeOptimalSteps` dans `game.js`) à partir du chemin optimal + 4 coups de marge.
 
 ## Présentation du code (5-10 min en fin d'atelier)
 
@@ -69,7 +70,7 @@ Tout est dans `levels.js`. Format :
   pot:   { col: 5, row: 5 },
   obstacles: [{ col: 1, row: 1 }, ...],
   stars:     [{ col: 5, row: 0 }, { col: 0, row: 5 }, { col: 3, row: 3 }],
-  color: '#ff8db3', colorDeep: '#c46285', colorName: 'rose',
+  color: '#ff8db3', colorDeep: '#c46285', colorName: 'rose', colorMasc: 'rose',
 }
 ```
 
